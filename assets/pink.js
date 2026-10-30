@@ -1183,6 +1183,13 @@ const AUTHR=['entrar','esqueci','redefinir','primeiro-acesso','acesso-ajuda'];
 function pwRules(v,c){ return [[v.length>=8,'Pelo menos 8 caracteres'],[/[A-Z]/.test(v),'Uma letra maiúscula'],[/[0-9]/.test(v),'Um número'],[!!v&&v===c,'As duas senhas são iguais']]; }
 function aField(lbl,id,type,val,ph,extra){ return `<label class="afld"><span>${lbl}</span><div class="ain"><input id="${id}" type="${type}" value="${esc(val||'')}" placeholder="${ph||''}" autocomplete="off">${extra||''}</div></label>`; }
 function pwField(lbl,id,val){ const show=S.pwShow&&S.pwShow[id]; return aField(lbl,id,show?'text':'password',val,'••••••••',`<button type="button" class="aeye" data-a="pweye" data-v="${id}" aria-label="${show?'Esconder':'Mostrar'} senha">${ic(show?'eyeoff':'eye','sm')}</button>`); }
+function rulesHTML(R){ return R.map(x=>`<li class="${x[0]?'ok':''}">${ic(x[0]?'checkc':'xc','sm')}${x[1]}</li>`).join(''); }
+function auSync(){ const A=S.au||{}; const em=/.+@.+\..+/;
+  const b1=document.querySelector('[data-a=aulogin]'); if(b1) b1.disabled=!(em.test(A.em||'')&&(A.pw||'').length>0);
+  const b2=document.querySelector('[data-a=ausend]'); if(b2) b2.disabled=!em.test(A.fe||'');
+  const ul=document.querySelector('.arules'); const b3=document.querySelector('[data-a=ausave]');
+  if(ul&&b3){ const R=pwRules(A.n1||'',A.n2||''); ul.innerHTML=rulesHTML(R); b3.disabled=!(R.every(x=>x[0])&&(b3.dataset.v!=='primeiro-acesso'||A.terms)); }
+}
 function vAuth(r){ const A=S.au||(S.au={});
   const WM=document.querySelector('.pkw')?document.querySelector('.pkw').outerHTML.replace(/pkwg/g,'pkwa'):'';
   let card='';
@@ -1203,7 +1210,7 @@ function vAuth(r){ const A=S.au||(S.au={});
     if(A.done===r) card=`<span class="aok good">${ic('checkc')}</span><h1>${pa?'Acesso criado':'Senha alterada'}</h1><p class="asub">${pa?'Tudo pronto. Agora vamos configurar a sua conta, em poucos passos.':'Use a senha nova para entrar. Por segurança, os outros aparelhos conectados foram desconectados.'}</p><a class="btn abtn" href="${pa?'#/config/empresa':'#/entrar'}" data-a="audone">${pa?'Começar a configuração':'Ir para o login'}</a>`;
     else card=`${pa?`<h1>Crie seu acesso</h1><p class="asub">Bem-vinda à Pink. Crie uma senha para entrar.</p>`:`<h1>Criar nova senha</h1>${PINK.email?`<p class="asub">Para <b>${esc(PINK.email)}</b></p>`:''}`}
       ${pwField('Nova senha','au-n1',A.n1)}${pwField('Repita a senha','au-n2',A.n2)}
-      <ul class="arules">${R.map(x=>`<li class="${x[0]?'ok':''}">${ic(x[0]?'checkc':'xc','sm')}${x[1]}</li>`).join('')}</ul>
+      <ul class="arules">${rulesHTML(R)}</ul>
       ${pa?`<label class="aterm"><input type="checkbox" data-a="auterms" ${A.terms?'checked':''}><span>Aceito os <a class="lk" href="#/primeiro-acesso" data-a="toast" data-m="Abre os termos de uso">termos de uso</a> e a <a class="lk" href="#/primeiro-acesso" data-a="toast" data-m="Abre a política de privacidade">política de privacidade</a></span></label>`:''}
       <button class="btn abtn" type="button" data-a="ausave" data-v="${r}" ${ok?'':'disabled'}>${pa?'Criar acesso':'Salvar nova senha'}</button>
       ${pa?'':'<div class="aalt"><a href="#/entrar" class="lk">Voltar para o login</a></div>'}`; }
@@ -1344,7 +1351,7 @@ document.addEventListener('click',e=>{
   else if(a==='auerr'){ (S.au=S.au||{}).err=true; rerender(); }
   else if(a==='ausend'){ PINK.esqueci(S.au.fe); S.au.sent=true; S.au.wait=30; rerender(); clearInterval(S._aut); S._aut=setInterval(()=>{ if(!S.au||!S.au.sent){clearInterval(S._aut);return;} S.au.wait--; if(S.au.wait<=0) clearInterval(S._aut); if(location.hash==='#/esqueci') rerender(); },1000); }
   else if(a==='auresend'){ S.au.wait=30; toast('E-mail reenviado'); rerender(); clearInterval(S._aut); S._aut=setInterval(()=>{ S.au.wait--; if(S.au.wait<=0) clearInterval(S._aut); if(location.hash==='#/esqueci') rerender(); },1000); }
-  else if(a==='auterms'){ S.au.terms=t.checked; rerender(); }
+  else if(a==='auterms'){ S.au.terms=t.checked; auSync(); }
   else if(a==='ausave'){ PINK.salvarSenha(v,S.au.n1); }
   else if(a==='audone'){ S.au={}; }
   else if(a==='kgen'){ const r=Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10); S.newKey={env:v,val:(v==='prod'?'ehz_live_':'ehz_test_')+r,copied:false}; S.evd=null; rerender(); }
@@ -1431,7 +1438,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('input',e=>{
   const t=e.target;
-  if(t.id&&t.id.startsWith('au-')){ const k=t.id.slice(3); (S.au=S.au||{})[k]=t.value; if(k==='em'||k==='pw') S.au.err=false; rerender(); const el=document.getElementById(t.id); if(el){ el.focus(); try{el.setSelectionRange(t.value.length,t.value.length);}catch(e){} } return; }
+  if(t.id&&t.id.startsWith('au-')){ const k=t.id.slice(3); (S.au=S.au||{})[k]=t.value; if((k==='em'||k==='pw')&&S.au.err){ S.au.err=false; const er=document.querySelector('.aerr'); if(er) er.remove(); } auSync(); return; }
   if(t.id==='bl-q'){ S.bq=t.value; rerender(); const el=$('#bl-q'); if(el){el.focus(); el.setSelectionRange(t.value.length,t.value.length);} return; }
   if(t.id==='aj-q'){ S.aq=t.value; rerender(); const el=$('#aj-q'); if(el){el.focus(); el.setSelectionRange(t.value.length,t.value.length);} return; }
   if(t.id==='sms-nm'){ const c=t.value.replace(/[^A-Za-z0-9]/g,'').slice(0,11); S.smsDraft=c; rerender(); const el=$('#sms-nm'); if(el){el.focus(); el.setSelectionRange(c.length,c.length);} return; }
@@ -1455,50 +1462,7 @@ window.addEventListener('hashchange',()=>{S.menu=false;S.evd=null;S.acOpen=false
 PINK.init().then(ok=>{ if(ok) render(); });
 })();
 
-/* fundo das telas de acesso: a carteira em pontos. A régua passa em ondas e os pagamentos acendem em rosa */
-(function(){
-  const cv=document.createElement('canvas'); cv.id='authfx'; cv.setAttribute('aria-hidden','true'); document.body.appendChild(cv);
-  const ctx=cv.getContext('2d'); const DPR=Math.min(2,window.devicePixelRatio||1);
-  const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let W=0,H=0,G=[],cols=0,rows=0,waves=[],mx=-999,my=-999,last=0,nextWave=600;
-  const SP=24;
-  function build(){ W=cv.clientWidth; H=cv.clientHeight; cv.width=W*DPR; cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
-    cols=Math.ceil(W/SP)+1; rows=Math.ceil(H/SP)+1; G=[];
-    for(let j=0;j<rows;j++) for(let i=0;i<cols;i++){ const x=i*SP+(j%2?SP/2:0), y=j*SP; G.push({x,y,p:Math.random()<.035?Math.random():0,g:0}); } }
-  addEventListener('resize',()=>{W=0;});
-  addEventListener('pointermove',e=>{ const r=cv.getBoundingClientRect(); mx=e.clientX-r.left; my=e.clientY-r.top; });
-  function frame(now){
-    const on=document.body.classList.contains('authm');
-    if(on){
-      if(!W||Math.abs(cv.clientWidth-W)>1||Math.abs(cv.clientHeight-H)>1) build();
-      const dt=Math.min(50,now-(last||now)); last=now;
-      const light=document.documentElement.classList.contains('light');
-      if(!RM){ nextWave-=dt; if(nextWave<=0){ const fromCenter=Math.random()<.5; waves.push({x:fromCenter?W/2:W*(.15+Math.random()*.7),y:fromCenter?H*.42:H*(.15+Math.random()*.7),r:0}); nextWave=3800+Math.random()*2200; } }
-      waves.forEach(w=>w.r+=dt*0.32); waves=waves.filter(w=>w.r<Math.hypot(W,H));
-      ctx.clearRect(0,0,W,H);
-      const base=light?'31,58,107':'150,170,210';
-      for(const d of G){
-        let glow=0;
-        for(const w of waves){ const dist=Math.abs(Math.hypot(d.x-w.x,d.y-w.y)-w.r); if(dist<26){ const v=1-dist/26; glow=Math.max(glow,v); if(v>.92&&d.p===0&&Math.random()<.018) d.p=1; } }
-        const md=Math.hypot(d.x-mx,d.y-my); const hover=md<140?(1-md/140):0;
-        if(d.p>0&&!RM) d.p=Math.max(0,d.p-dt*0.000035);
-        const pk=d.p;
-        let r=1.1+glow*1.1+hover*.9+pk*1.3;
-        if(pk>0.02){ const tw=.75+.25*Math.sin(now*.003+d.x*.05);
-          ctx.fillStyle=`rgba(${light?'216,0,115':'255,64,160'},${(0.25+0.6*pk)*tw})`;
-          ctx.beginPath(); ctx.arc(d.x,d.y,r,0,7); ctx.fill();
-          if(pk>.5){ ctx.fillStyle=`rgba(240,40,143,${0.10*pk})`; ctx.beginPath(); ctx.arc(d.x,d.y,r*4,0,7); ctx.fill(); }
-        } else {
-          const a=(light?0.12:0.10)+glow*(light?0.35:0.45)+hover*0.3;
-          ctx.fillStyle=glow>.1?`rgba(${light?'31,95,168':'170,200,255'},${a})`:`rgba(${base},${a})`;
-          ctx.beginPath(); ctx.arc(d.x,d.y,r,0,7); ctx.fill();
-        }
-      }
-    }
-    requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
-})();
+
 
 
 

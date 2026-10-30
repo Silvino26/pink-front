@@ -2117,6 +2117,11 @@ html.light .glassc .lk{color:#B0005E}
 .glassc .arules svg{width:13px;height:13px;flex-shrink:0}
 .glassc .aterm{font-size:11.4px;gap:8px;align-items:center;white-space:nowrap}
 .glassc .aterm input{margin-top:0}
+/* login sem animações: só o fundo em degradê */
+#authfx{display:none!important}
+.authm .asym2,.authm .awm .pkw path,.authm .akick,.authm .glassc{animation:none!important;opacity:1!important;translate:none!important}
+.authm .asym2{background:linear-gradient(90deg,#FF5FB1,#D80073)!important;filter:none!important}
+.authm .glassc:focus-within{box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 40px 90px rgba(0,0,0,.5)!important}
 
 /* versão de produção: sem barra do protótipo */
 .proto{display:none!important}
